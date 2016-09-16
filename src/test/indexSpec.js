@@ -143,14 +143,14 @@ describe("Stream testing", () => {
  			var oddSet = LazyStream.range(1,undefined,2);
  			var evenSet = LazyStream.range(2,undefined,2);
  			var nums = oddSet.merge(less, evenSet);
- 			//expect(nums.drop(8).take(2).toString()).to.equal('[9, 10]');
- 			//expect(nums.take(10).drop(10).empty()).to.equal(true);
+ 			expect(nums.drop(8).take(2).toString()).to.equal('[9, 10]');
+ 			expect(nums.take(10).drop(10).empty()).to.equal(true);
  
- 			//expect(nums.take(10).filter(NOT(isEven)).toString()).to.equal('[1, 3, 5, 7, 9]');
- 			//expect(nums.take(10).drop(NOT(isEven)).toString()).to.equal('[2, 3, 4, 5, 6, 7, 8, 9, 10]');
- 			//expect(nums.take(10).filter(NOT(isEven)).drop(NOT(isEven)).toString()).to.equal('[]');
- 			//expect(nums.take(10).filter(NOT(isEven)).drop(NOT(isEven)).empty()).to.equal(true);
- 			//expect(nums.take(100).filter(NOT(isEven)).drop(NOT(isEven)).empty()).to.equal(true);
+ 			expect(nums.take(10).filter(NOT(isEven)).toString()).to.equal('[1, 3, 5, 7, 9]');
+ 			expect(nums.take(10).drop(NOT(isEven)).toString()).to.equal('[2, 3, 4, 5, 6, 7, 8, 9, 10]');
+ 			expect(nums.take(10).filter(NOT(isEven)).drop(NOT(isEven)).toString()).to.equal('[]');
+ 			expect(nums.take(10).filter(NOT(isEven)).drop(NOT(isEven)).empty()).to.equal(true);
+ 			expect(nums.take(100).filter(NOT(isEven)).drop(NOT(isEven)).empty()).to.equal(true);
  			
  		});
     	it("infinite list, using range test drop and filter and take", () =>{
@@ -168,7 +168,7 @@ describe("Stream testing", () => {
  	describe("simple incr regexp", () => {
  	
  		it("test generator",() =>{
- /*		  function* num() {
+ 		  function* num() {
  		  	let i=1;
  		  	while(true) {
  		  		yield i++;
@@ -178,7 +178,7 @@ describe("Stream testing", () => {
  		  let p = num();
  		  for(let i=0; i<1000000; i++) total += p.next().value; 
  		  expect( total ).to.equal(500000500000);
-*/ 		});
+ 		});
 
  		it("rationalize abd|a",() =>{
  			 			
