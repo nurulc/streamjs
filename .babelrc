@@ -1,0 +1,10 @@
+{
+  "retainLines": false,
+  "compact": true,
+  "comments": false,
+  "presets": [
+        "es2015"
+  ],
+  "plugins": ["transform-regenerator"],
+  "sourceMaps": false
+}

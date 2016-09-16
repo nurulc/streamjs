@@ -4,7 +4,11 @@
   "description": "Simple Javascript lazy stream/list library",
   "main": "index.js",
   "scripts": {
-    "test": "echo test"
+    "test": "mocha -R spec  -t 100000 --compilers js:babel-register src/test/*.js",
+    "build": "babel src --out-dir lib && node node_modules/webpack/bin/webpack",
+    "watch:js": "babel src --out-dir lib --watch ",
+    "lint": "jshint src",
+    "pack": "node node_modules/webpack/bin/webpack"
   },
   "repository": {
     "type": "git",
@@ -18,5 +22,20 @@
   "bugs": {
     "url": "https://github.com/nurulc/streamjs/issues"
   },
-  "homepage": "https://github.com/nurulc/streamjs#readme"
+  "homepage": "https://github.com/nurulc/streamjs#readme",
+  "devDependencies": {
+    "babel": "^6.5.2",
+    "babel-cli": "^6.14.0",
+    "babel-core": "^6.14.0",
+    "babel-loader": "^6.2.5",
+    "babel-plugin-syntax-async-generators": "^6.13.0",
+    "babel-plugin-transform-regenerator": "^6.14.0",
+    "babel-preset-es2015": "^6.14.0",
+    "babel-register": "^6.14.0",
+    "babel-runtime": "^6.11.6",
+    "chai": "^3.5.0",
+    "mocha": "^3.0.2",
+    "regenerator-runtime": "^0.9.5",
+    "webpack": "^1.13.2"
+  }
 }
