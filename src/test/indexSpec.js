@@ -70,7 +70,7 @@ describe("Stream testing", () => {
     	it("- infinite list, using range test drop and filter and take", () =>{
  			var oddSet = Stream.range(1,undefined,2);
  			var evenSet = Stream.range(2,undefined,2);
- 			var nums = oddSet.merge(less, evenSet);
+ 			var nums = oddSet.merge(evenSet);
  			expect(nums.drop(8).take(2).toString()).to.equal('[9, 10]');
  			expect(nums.take(10).drop(10).empty()).to.equal(true);
  
@@ -84,7 +84,7 @@ describe("Stream testing", () => {
     	it("- infinite list, using range test drop and filter and take", () =>{
  			var odd = Stream.range(1,undefined,2);
  			var even = Stream.range(2,undefined,2);
- 			var nums = odd.merge(less, even);
+ 			var nums = odd.merge(even);
  			expect( nums.take(100).reduce(sum) ).to.equal(5050);
  			expect( nums.take(1000000).reduce(sum) ).to.equal(500000500000); // test with a big lazy list
  			
@@ -158,14 +158,14 @@ describe("Stream testing", () => {
  			var even = LazyStream.range(2,undefined,2);
  			var nums = odd.merge(less, even);
  			expect( nums.take(100).reduce(sum) ).to.equal(5050);
- 			expect( nums.take(1000000).reduce(sum) ).to.equal(500000500000); // test with a big lazy list
+ 			expect( nums.take(100000000).reduce(sum) ).to.equal(5000000050000000); // test with a big lazy list
  			
  		});
 		
     });
 
 	    
- 	describe("simple incr regexp", () => {
+ 	describe("generator", () => {
  	
  		it("test generator",() =>{
  		  function* num() {
@@ -176,13 +176,18 @@ describe("Stream testing", () => {
  		  }
  		  var total = 0;
  		  let p = num();
- 		  for(let i=0; i<1000000; i++) total += p.next().value; 
- 		  expect( total ).to.equal(500000500000);
+ 		  for(let i=0; i<100000000; i++) total += p.next().value; 
+ 		  expect( total ).to.equal(5000000050000000);
  		});
 
- 		it("rationalize abd|a",() =>{
- 			 			
- 		});
+ 		it("simple javascript",() =>{
+          
+          var total1 = 0|0;
+          
+          for(let i=1|0; i<=100000000; i++) total1 += i; 
+          expect( total1 ).to.equal(5000000050000000);
+        });			 			
+
  		it("regexp or abc|abd", () =>{
  			 			
  		});

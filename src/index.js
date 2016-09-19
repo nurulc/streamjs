@@ -160,8 +160,24 @@ exports.Stream = Stream;
             };
         };
 
+        function cons(h, tail) {
+                if (isStream(tail)) {  
+                    var strm = new Stream(h);        // if t is already a stream and not a function, save the value
+                    strm.tailValue = tail;
+                    return strm;
+                }
+                return new Stream(h,tail);
+        };
 
-        var cons = makeCons(Stream);
+        function lazyCons(h, tail) {
+                if (isStream(tail)) {  
+                    var strm = new LazyStream(h);        // if t is already a stream and not a function, save the value
+                    strm.tailValue = tail;
+                    return strm;
+                }
+                return new LazyStream(h,tail);
+        };
+        //var cons = makeCons(Stream);
         // expect an arry of anything, or anything and returns a string
         function toStr(x) {
           return isArr(x) ? "[" + x.toString() + "]" : x.toString();
@@ -171,7 +187,125 @@ exports.Stream = Stream;
            return strm.notEmpty(msg);
         }
 
+        function add(a,b) { return a+b; }
+
         Stream.nodesCreated = 0;            // useful for benchmarking and understanding algorithn behavior
+
+        function ActionAppend(self, stream) {
+            this.self = self;
+            this.stream = stream;
+        }
+        ActionAppend.prototype.action = function() {
+             return this.self.tail().append(this.stream);
+        };
+
+        function ActionFlatten(self) {
+            this.self = self;
+        }
+        ActionFlatten.prototype.action = function() {
+              return this.self.tail().flatten();
+        };
+
+        function ActionZip(self,f,strm) {
+            this.self = self;
+            this.f = f;
+            this.strm = strm;
+        }
+        ActionZip.prototype.action = function() {
+                    return this.self.tail().zip(this.f, this.strm.tail());
+        };
+/*
+        if(f(this.head(), astrm.head())) return this.cons(this.head(), );
+                else return                             this.cons(astrm.head(), function() { return self.dataMerge(f, astrm.tail());  });
+
+*/
+        function ActionDataMergeL(self,f,astrm) {
+            this.self = self;
+            this.f = f;
+            this.astrm = astrm;
+        }
+        ActionDataMergeL.prototype.action = function() { return this.self.tail().dataMerge(this.f, this.astrm);};
+
+        function ActionDataMergeR(self,f,astrm) {
+            this.self = self;
+            this.f = f;
+            this.astrm = astrm;
+        }
+        ActionDataMergeR.prototype.action = function() { return this.astrm.tail().dataMerge(this.f, this.self);};
+
+        function ActionSimpleMerge(self,astrm) {
+            this.self = self;
+             this.astrm = astrm;
+                }
+        ActionSimpleMerge.prototype.action = function() { return this.astrm.simpleMerge(this.self.tail());};
+
+        function ActionMap(self,f,thisArg,ix ) {
+            this.self = self;
+            this.f = f;
+            this.ix =ix;
+        }
+        ActionMap.prototype.action = function() {   return this.self.tail().map(this.f,this.thisArg,this.ix+1);   };
+
+
+        function ActionReduceL(self,aggregator,v,ix) {
+            this.self = self;
+            this.aggregator=aggregator;
+            this.v = v;
+            this.ix = ix
+        }
+        ActionReduceL.prototype.action = function() { return this.self.tail().reduceL(this.aggregator, this.v, this.ix+1);    };
+
+        function ActionFilter(self,f,thisArg,ix1) {
+            this.self = self;
+            this.f = f;
+            this.thisArg = thisArg;
+            this.ix1 = ix1
+        }
+        ActionFilter.prototype.action = function() { return this.self.tail().filter(this.f,this.thisArg,this.ix1); };
+
+        function ActionTake(self,howmany) {
+            this.self = self;
+            this.howmany = howmany
+        }
+        ActionTake.prototype.action = function() { return this.self.tail().take(this.howmany - 1);     };
+
+        function ActionRange(self,low,high,inc) {
+            this.self = self;
+            this.low = low;
+            this.high = high;
+            this.inc = inc;
+        }
+        ActionRange.prototype.action = function() { return this.self.range(this.low + this.inc, this.high, this.inc);       };
+
+        function ActionRange(self,low,high,inc) {
+            this.self = self;
+            this.low = low;
+            this.high = high;
+            this.inc = inc;
+        }
+        ActionRange.prototype.action = function() { return this.self.range(this.low + this.inc, this.high, this.inc);       };
+
+        function ActionGen(self, f, newV, ix,curr) {
+            this.self = self;
+            this.f = f;
+            this.newV = newv;
+            this.ix = ix;
+            this.curr = curr;
+        }
+        ActionGen.prototype.action = function() { return this.self.gen(this.f, this.newV, this.ix+1,this.curr); };
+
+        function ActionArr(self, array, from) {
+            this.self = self;
+            this.array = array;
+            this.from = from;
+        }
+        ActionArr.prototype.action = function() { return this.self.arr(this.array,this.from+1); } ;
+
+        function ActionAsStream(self, array) {
+            this.self = self;
+            this.array = array;
+        }
+        ActionAsStream.prototype.action = function() {  return this.self.asStream(this.array);   } ;
 
         Stream.prototype = {
             _assign(head, tailFunc, tailValue) {
@@ -193,8 +327,8 @@ exports.Stream = Stream;
             },
             tail: function() {
                 if (isUndef(notEmpty(this).tailValue)) { // we dont have the tail value
-                    func(this.tailPromise);                     // amke sure it is a function
-                    this.tailValue = this.tailPromise(); // use the function to compute it, and make sure it is a Stream
+                    //func(this.tailPromise);                     // amke sure it is a function
+                    this.tailValue = this.tailPromise.action(); // use the function to compute it, and make sure it is a Stream
                                                          // this makes sure you have to compute it only once
                     this.tailPromise = undefined;       // Used it (the tail function) no longer need it, since the result is in
                 }
@@ -203,11 +337,11 @@ exports.Stream = Stream;
             lazyTail: function() {
                 if(this === EMPTY) return EMPTY;
                 if( this.tailValue ) return this.tailValue;
-                return strm(this.tailPromise()); // use the function to compute it, and make sure it is a Stream
+                return strm(this.tailPromise.action()); // use the function to compute it, and make sure it is a Stream
             },
             tailPromiseOrValue: function() {
                 if( this.isEmpty() ) return EMPTY;
-                if( this.tailPromise !== undefined ) return this.tailPromise();
+                if( this.tailPromise !== undefined ) return this.tailPromise.action();
                 return this.tailValue;
             },
             item: function(n) { // get the n item from the current position in the stream
@@ -227,26 +361,20 @@ exports.Stream = Stream;
                 strm(stream,'append');
                 if (this.empty()) return stream;
                 var self = this;
-                return this.cons(this.head(), function() {
-                    return self.tail().append(stream);
-                });
+                return this.cons(this.head(), new ActionAppend(self, stream));
             },
             flatten: function() {
                 if (this.empty()) return this;
                 if (isStream(this.head())) { return this.head().append(strm(this.tail()).flatten()); }
                 var self = this;
-                return this.cons(this.head(), function() {
-                            return self.tail().flatten();
-                            } );
+                return this.cons(this.head(), new ActionFlatten(this));
             },
             flatMap: function(f) {
                 return this.map(func(f)).flatten();
             },
             add: function(strm) {
                 strm(s);
-                return this.zip(function(x, y) {
-                    return x + y;
-                }, strm);
+                return this.zip(add, strm);
             },
             zip: function(f, strm) {
                 if (this.empty()) {
@@ -257,9 +385,7 @@ exports.Stream = Stream;
                 }
                 func(f);
                 var self = this;
-                return this.cons(f(this.head(), strm.head()), function() {
-                    return self.tail().zip(f, strm.tail());
-                });
+                return this.cons(f(this.head(), strm.head()), new ActionZip(this,f, strm)); 
             },
             merge: function(f, astrm) {
                 if(arguments.length === 1 ) return this.simpleMerge(f);
@@ -273,21 +399,18 @@ exports.Stream = Stream;
                     return this;
                 }
                 func(f);
-                var self = this;
-                func(self.cons);
-                if(f(this.head(), astrm.head())) return this.cons(this.head(), function() { return self.tail().dataMerge(f, astrm);});
-                else return                             this.cons(astrm.head(), function() { return self.dataMerge(f, astrm.tail());  });
+                if(f(this.head(), astrm.head())) return this.cons(this.head(),  new ActionDataMergeL(this,f,astrm));
+                else return                             this.cons(astrm.head(), new ActionDataMergeR(this,f,astrm));
             },
             simpleMerge: function(astrm) {
-                if (this.empty()) {
+                if (this.empty()) {self,f,astrm
                     return astrm;
                 }
                 if (astrm.empty()) {
                     return this;
                 }
-                func(f);
                 var self = this;
-                return this.cons(this.head(), function() { return astrm.simpleMerge(self.tail());});
+                return this.cons(this.head(), new ActionSimpleMerge(this, astrm));
             },
             map: function(f,thisArg,ix) {
                 func(f);
@@ -296,9 +419,7 @@ exports.Stream = Stream;
                 }
                 var self = this;
                 ix = ix || 0;
-                return this.cons(f.call(thisArg,this.head(),ix, this), function() {
-                    return self.tail().map(f,thisArg,ix+1);
-                });
+                return this.cons(f.call(thisArg,this.head(),ix, this), new ActionMap(this,f,thisArg,ix));
             },
             forEach: function(f,thisArg,ix) { // eagear version of each
                 func(f);
@@ -332,15 +453,10 @@ exports.Stream = Stream;
                 }
                 ix = ix || 0;
                 var v = aggregator(initial, this.head(),ix,this);
-                var self = this;
-                return this.cons(v, function() {
-                                return self.tail().reduceL(aggregator, v, ix+1);
-                            });
+                return this.cons(v, new ActionReduceL(this,aggregator,v,ix));
             },
             sum: function() {
-                return this.reduce(function(a, b) {
-                    return a + b;
-                }, 0);
+                return this.reduce(sum, 0);
             },
             force: function(f /* optional */ ) {
                 var stream = this;
@@ -360,17 +476,15 @@ exports.Stream = Stream;
                 var self = selfIx[0];
                 var ix1 = selfIx[1];
                 if (self.empty()) {  return EMPTY;   }
-                return this.cons(self.head(), function() { return self.tail().filter(f,thisArg,ix1); });
+                return this.cons(self.head(), new ActionFilter(self,f,thisArg,ix1)); 
             },
             take: function(howmany) {
                 if (this.empty()) { return this;  }
                 if (nat32(howmany) === 0) { return EMPTY; }
 
-                var self = this;
-                return ((howmany - 1) === 0 ? self.cons(self.head(), EMPTY) :
-                    self.cons(self.head(), function() {
-                        return self.tail().take(howmany - 1);
-                    }));
+               
+                return ((howmany - 1) === 0 ? this.cons(this.head(), EMPTY) :
+                                              this.cons(this.head(), new ActionTake(this,howmany)));
             },
 
             dropx: function(funcOrNumber,thisArg,ix) { // if function drop elements while the f(head) === false, the function is really a drop until
@@ -437,9 +551,7 @@ exports.Stream = Stream;
             inc = NVL(inc,1);
             var self = this;
             if (low === high) { return self.cons(low,EMPTY);  }
-            return self.cons(low, function() {
-                return self.range(low + inc, high, inc);
-            });
+            return self.cons(low, new ActionRange(this,low,high,inc));
         };
 
         // This method is tricky, since the generator function (f) need a reference to the stream is is creating
@@ -449,8 +561,7 @@ exports.Stream = Stream;
                 ix = ix || 0;
                 func(f);
                 var newV , curr;
-                var self = this;
-                curr = this.cons(undefined, function() { return self.gen(f, newV, ix+1,curr); });
+                curr = this.cons(undefined, new ActionGen(this, f, newV, ix,curr));
                 curr.headValue = f(oldV,ix, curr, prevHead);
                 return curr;
         };
@@ -470,7 +581,7 @@ exports.Stream = Stream;
             from = from || 0 ;
             if( from >= array.length) { return EMPTY; }
             var self = this;
-            return self.cons(array[from], function() { return self.arr(array,from+1); } );
+            return self.cons(array[from], new ActionArr(this,array,from) );
         };
         Stream.asStream = function(arrayOrVal) { // recursive version of Stream.arr, takes care of arroy of array ...
             if (isUndef(arrayOrVal) ) return EMPTY;
@@ -479,9 +590,7 @@ exports.Stream = Stream;
                 if (arrayOrVal.length === 0) return EMPTY;
                 var array = slice(arrayOrVal, 1);
                 var h = arrayOrVal[0];
-                return self.cons(isArr(h) ? self.asStream(h) : h, function() {
-                    return self.asStream(array);
-                });
+                return self.cons(isArr(h) ? self.asStream(h) : h, new ActionAsStream(this, array));
             }
             return this.make(arrayOrVal);
         };
@@ -519,7 +628,7 @@ exports.Stream = Stream;
         Stream.EMPTY = EMPTY;
 
 // Lazy version
-        var lazyCons = makeCons(LazyStream);
+        //var lazyCons = makeCons(LazyStream);
         var lazyConsX = makeConsX(LazyStream);
 
         /*
@@ -591,6 +700,7 @@ exports.Stream = Stream;
 */
         for(var k in Stream) LazyStream[k] = Stream[k];         
         LazyStream.cons = lazyCons;
+    //  LazyStream.cons = function(a,b) { var x = lazyCons(a,b); Object.setPrototypeOf(x,StartLazyStream); return x; };
         LazyStream.prototype.constructor = LazyStream;
 
     })();
